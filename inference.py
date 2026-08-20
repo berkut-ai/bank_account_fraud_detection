@@ -1,4 +1,5 @@
 from datetime import date
+from fastapi import UploadFile
 from functools import lru_cache
 from schemas import PredictRequest, PredictResponse
 from pathlib import Path
@@ -45,8 +46,7 @@ def get_ips_per_account(account_id: str, ip: str) -> int:
     r.sadd(key, ip)
     return r.scard(key)
 
-def preprocess_data(request: PredictRequest) -> pd.DataFrame:
-    data = request.model_dump()
+def preprocess_data(data: dict) -> pd.DataFrame:
     data['is_proxy'] = check_proxy_cached(data['ip'])
     data['location_freq'] = location_freq_map.get(data['location'], 0)
     data['Channel_Branch'] = int(data['channel'] == "branch")
@@ -59,16 +59,22 @@ def preprocess_data(request: PredictRequest) -> pd.DataFrame:
     df = pd.DataFrame([data]).reindex(columns=feature_names, fill_value=0)
     return pd.DataFrame(preprocessor.transform(df), columns=feature_names)
 
-def predict(request: PredictRequest) -> PredictResponse:
+def predict(request: dict) -> dict[str, bool | float]:
     data = preprocess_data(request)
     prediction = model.predict(data)[0]
     score = -model.decision_function(data)[0]
-    return PredictResponse(is_fraud=bool(prediction == -1), fraud_score=round(float(score), 2))
+    return {'is_fraud': bool(prediction == -1), 'fraud_score': round(float(score), 2)}
 
+def predict_file(df: pd.DataFrame) -> pd.DataFrame:
+    predictions = [predict(row) for row in df.to_dict(orient="records")]
+    return pd.concat(
+      [df.reset_index(drop=True), pd.DataFrame(predictions)],
+            axis=1
+    )
 
 if __name__ == '__main__':
     print(feature_names)
-    print(predict(PredictRequest(**{
+    print(predict({
         "transaction_amount": 1450.75,
         "location": "New York",
         "channel": "online",
@@ -76,4 +82,4 @@ if __name__ == '__main__':
         "ip": "8.8.8.8",
         "account_id": "acc_123456"
       }
-    )))
+    ))
