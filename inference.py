@@ -4,26 +4,36 @@ from functools import lru_cache
 from schemas import PredictRequest, PredictResponse
 from pathlib import Path
 import joblib
+import logging
 import pandas as pd
 import redis
 import requests
 import time
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).parent
 
-feature_names = joblib.load(BASE_DIR / "ml" / "feature_names.pkl")
-location_freq_map = joblib.load(BASE_DIR / "ml" / "location_freq_map.pkl")
-model = joblib.load(BASE_DIR / "ml" / "isolation_forest.pkl")
-preprocessor = joblib.load(BASE_DIR / "ml" / "preprocessor.pkl")
+try:
+    feature_names = joblib.load(BASE_DIR / "ml" / "feature_names.pkl")
+    location_freq_map = joblib.load(BASE_DIR / "ml" / "location_freq_map.pkl")
+    model = joblib.load(BASE_DIR / "ml" / "isolation_forest.pkl")
+    preprocessor = joblib.load(BASE_DIR / "ml" / "preprocessor.pkl")
+except Exception as err:
+    logger.error("Failed to load model or data.", exc_info=err)
 
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+try:
+    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+except Exception as err:
+    logger.error("Failed to create the redis.", exc_info=err)
 
 def check_proxy(ip: str) -> int:
     try:
         url = f"http://ip-api.com/json/{ip}?fields=status,proxy,hosting,country,isp"
         response = requests.get(url, timeout=3)
         data = response.json()
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as err:
+        logger.error(f"Failed to check proxy for ip: {ip}", exc_info=err)
         return 0
 
     if data.get("status") != "success":
