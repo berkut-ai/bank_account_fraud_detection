@@ -1,18 +1,23 @@
 from datetime import date
 from fastapi import UploadFile
 from functools import lru_cache
+from upstash_redis import Redis
 from schemas import PredictRequest, PredictResponse
 from pathlib import Path
+from dotenv import load_dotenv
 import joblib
 import logging
 import pandas as pd
-import redis
 import requests
 import time
+import os
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).parent
+REDIS_TOKEN = os.getenv("REDIS_TOKEN")
 
 try:
     feature_names = joblib.load(BASE_DIR / "ml" / "feature_names.pkl")
@@ -23,7 +28,7 @@ except Exception as err:
     logger.error("Failed to load model or data.", exc_info=err)
 
 try:
-    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    r = Redis(url="https://knowing-leopard-106220.upstash.io", token=REDIS_TOKEN)
 except Exception as err:
     logger.error("Failed to create the redis.", exc_info=err)
 
