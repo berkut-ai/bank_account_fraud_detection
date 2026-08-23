@@ -2,3 +2,5 @@
 ml/data/bank_transactions_data_2-selected-columns.csv
 ml/data/is_proxy.csv
 *.pyc
+.env
+logs
