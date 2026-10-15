@@ -16,7 +16,7 @@ from slowapi.util import get_remote_address
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-app = FastAPI()
+app = FastAPI(title="Bank Fraud Detection")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
